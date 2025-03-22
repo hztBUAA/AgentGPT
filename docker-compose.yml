@@ -3,9 +3,10 @@ version: '3.9'
 services:
   frontend:
     container_name: frontend
-    build:
-      context: ./next
-      dockerfile: Dockerfile
+    image: frontend
+    # build:
+    #   context: ./next
+    #   dockerfile: Dockerfile
     ports:
       - "3000:3000"
     volumes:
@@ -13,14 +14,27 @@ services:
       - ./next/:/next/
       - /next/node_modules
       - /next/.next
+    network_mode: "host"
+    # networks:
+    #   - host
 
   platform:
     container_name: platform
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     build:
       context: ./platform
       target: prod
+      args:
+        - HTTP_PROXY=http://host.docker.internal:7890
+        - HTTPS_PROXY=http://host.docker.internal:7890
+        - http_proxy=http://host.docker.internal:7890
+        - https_proxy=http://host.docker.internal:7890
     ports:
       - "8000:8000"
+    network_mode: "host"
+    # networks:
+    #   - host
     restart: always
     volumes:
       - ./platform:/app/src/
@@ -56,3 +70,5 @@ services:
 
 volumes:
   agentgpt_db:
+
+

@@ -1,0 +1,34 @@
+version: '3.9'
+
+services:
+  frontend:
+    build:  # 开发模式下启用构建配置
+      context: ./next
+      dockerfile: Dockerfile
+    command: npm run dev  # 使用开发模式启动
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./next/.env:/next/.env
+      - ./next/:/next/  # 源代码挂载
+      - /next/node_modules  # 保护 node_modules
+      - /next/.next  # 保护 .next
+    
+  platform:
+    build:
+      context: ./platform
+      target: dev  # 使用开发环境目标
+    command: uvicorn reworkd_platform.main:app --reload --host 0.0.0.0 --port 8000
+    environment:
+      - PYTHONPATH=/app/src
+      - ENVIRONMENT=dev
+    volumes:
+      - ./platform:/app/src/  # 源代码挂载
+      - ./platform/.env:/app/src/.env
+    
+  agentgpt_db:
+    ports:
+      - "3308:3307"  # 开发环境暴露数据库端口
+    volumes:
+      - agentgpt_db:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql  # 开发环境的数据库初始化脚本 

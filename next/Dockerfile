@@ -6,7 +6,7 @@ ARG NODE_ENV
 ENV NODE_ENV=$NODE_ENV
 
 # 使用阿里云镜像源
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+# RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # Needed for the wait-for-db script
 RUN apk add --no-cache netcat-openbsd
