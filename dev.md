@@ -197,6 +197,127 @@ agent_run = AgentRun(
 1. 在 `schemas/` 下定义新的数据模型
 2. 扩展现有模型以支持新功能
 
+### 5. 服务层开发
+
+#### 5.1 Services模块概述
+
+Services模块提供了一系列核心服务：
+
+1. **TokenService**: 处理文本标记化
+```python
+class TokenService:
+    def count(self, text: str) -> int:
+        return len(self.tokenize(text))
+
+    def calculate_max_tokens(self, model: WrappedChatOpenAI, *prompts: str) -> None:
+        requested_tokens = self.get_completion_space(model.model_name, *prompts)
+        model.max_tokens = min(model.max_tokens, requested_tokens)
+```
+
+2. **ClaudeService**: Anthropic Claude模型集成
+```python
+class ClaudeService:
+    async def completion(
+        self,
+        prompt: AbstractPrompt,
+        max_tokens_to_sample: int,
+        temperature: int = 0,
+    ) -> str:
+        # Claude API调用实现
+```
+
+3. **PineconeMemory**: 向量数据库集成
+```python
+class PineconeMemory(AgentMemory):
+    async def get_similar_tasks(
+        self, text: str, score_threshold: float = 0.95
+    ) -> List[QueryResult]:
+        # 相似任务检索实现
+```
+
+4. **EncryptionService**: 安全加密服务
+```python
+class EncryptionService:
+    def encrypt(self, text: str) -> bytes:
+        return self.fernet.encrypt(text.encode("utf-8"))
+```
+
+#### 5.2 二次开发场景
+
+1. **自定义工作流集成**
+   - 实现自己的Memory服务
+   - 扩展TokenService支持新的模型
+   - 添加新的AI模型服务
+
+2. **向量存储定制**
+   - 替换Pinecone为其他向量数据库
+   - 自定义相似度计算逻辑
+   - 优化检索策略
+
+3. **模型集成**
+   - 添加新的LLM模型支持
+   - 自定义模型参数
+   - 实现模型切换逻辑
+
+4. **安全服务扩展**
+   - 增强加密机制
+   - 添加新的认证方式
+   - 实现细粒度的权限控制
+
+#### 5.3 开发示例
+
+1. **自定义Memory服务**
+```python
+class CustomMemory(AgentMemory):
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        
+    async def get_similar_tasks(
+        self, text: str, score_threshold: float
+    ) -> List[QueryResult]:
+        # 实现自定义的相似任务检索逻辑
+        pass
+```
+
+2. **新增模型服务**
+```python
+class CustomModelService:
+    def __init__(self, api_key: str, model_config: Dict[str, Any]):
+        self.api_key = api_key
+        self.config = model_config
+        
+    async def completion(
+        self,
+        prompt: str,
+        max_tokens: int,
+        temperature: float,
+    ) -> str:
+        # 实现自定义模型的API调用
+        pass
+```
+
+#### 5.4 注意事项
+
+1. **性能考虑**
+   - 异步操作的正确使用
+   - 资源的合理释放
+   - 缓存策略的应用
+
+2. **安全性**
+   - API密钥的安全存储
+   - 数据加密的正确使用
+   - 访问控制的实现
+
+3. **可扩展性**
+   - 接口的抽象设计
+   - 配置的灵活管理
+   - 依赖注入的使用
+
+4. **错误处理**
+   - 优雅的异常处理
+   - 完善的日志记录
+   - 合理的重试机制
+
 ## 重点关注
 
 ### 1. 工具系统
