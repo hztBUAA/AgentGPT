@@ -658,4 +658,202 @@ class CustomTool(Tool):
     async def call(self, goal: str, task: str, input_str: str, *args, **kwargs):
         # 实现工具逻辑
         pass
-``` 
+```
+
+## Agent模块核心组件
+
+### 1. 流式响应处理 (Stream Mock)
+
+#### 1.1 基本组件
+```python
+def stream_string(data: str, delayed: bool = False) -> FastAPIStreamingResponse:
+    return FastAPIStreamingResponse(
+        stream_generator(data, delayed),
+    )
+```
+
+功能说明：
+- 提供流式响应能力
+- 支持延迟模式模拟真实API响应
+- 用于工具执行结果的实时返回
+
+使用场景：
+1. 工具执行结果返回
+2. 任务分析过程展示
+3. 代码生成实时反馈
+
+#### 1.2 延迟处理
+```python
+async def stream_generator(data: str, delayed: bool) -> AsyncGenerator[bytes, None]:
+    if delayed:
+        encoding = tiktoken.get_encoding("cl100k_base")
+        token_data = encoding.encode(data)
+        for token in token_data:
+            yield encoding.decode([token]).encode("utf-8")
+            await asyncio.sleep(0.025)
+    else:
+        yield data.encode()
+```
+
+### 2. 提示词系统 (Prompts)
+
+#### 2.1 核心提示词模板
+
+1. **任务启动提示词** (`start_goal_prompt`)
+```python
+start_goal_prompt = PromptTemplate(
+    template="""You are a task creation AI called AgentGPT. 
+    You answer in the "{language}" language. You have the following objective "{goal}". 
+    Return a list of search queries...""",
+    input_variables=["goal", "language"],
+)
+```
+
+2. **任务分析提示词** (`analyze_task_prompt`)
+```python
+analyze_task_prompt = PromptTemplate(
+    template="""High level objective: "{goal}"
+    Current task: "{task}"...""",
+    input_variables=["goal", "task", "language"],
+)
+```
+
+3. **代码生成提示词** (`code_prompt`)
+```python
+code_prompt = PromptTemplate(
+    template="""You are a world-class software engineer...""",
+    input_variables=["goal", "language", "task"],
+)
+```
+
+#### 2.2 提示词使用流程
+
+1. 任务初始化
+   - 使用`start_goal_prompt`创建初始任务列表
+   - 支持多语言响应
+   - 生成搜索查询
+
+2. 任务分析
+   - 使用`analyze_task_prompt`分析具体任务
+   - 选择合适的工具
+   - 生成执行计划
+
+3. 任务执行
+   - 使用特定工具的提示词
+   - 生成执行结果
+   - 处理后续任务
+
+### 3. 路由与请求处理
+
+#### 3.1 核心路由
+
+1. **启动任务** (`/start`)
+```python
+@router.post("/start")
+async def start_tasks(
+    req_body: AgentRun,
+    agent_service: AgentService
+) -> NewTasksResponse:
+    new_tasks = await agent_service.start_goal_agent(goal=req_body.goal)
+    return NewTasksResponse(newTasks=new_tasks, run_id=req_body.run_id)
+```
+
+2. **分析任务** (`/analyze`)
+```python
+@router.post("/analyze")
+async def analyze_tasks(
+    req_body: AgentTaskAnalyze,
+    agent_service: AgentService
+) -> Analysis
+```
+
+3. **执行任务** (`/execute`)
+```python
+@router.post("/execute")
+async def execute_tasks(
+    req_body: AgentTaskExecute,
+    agent_service: AgentService
+) -> FastAPIStreamingResponse
+```
+
+#### 3.2 服务流程
+
+1. **请求验证**
+   - 使用依赖注入进行请求验证
+   - 检查必要参数
+   - 验证用户权限
+
+2. **服务处理**
+   - 通过`AgentService`处理业务逻辑
+   - 支持同步和异步操作
+   - 处理错误和异常
+
+3. **响应生成**
+   - 使用`StreamingResponse`返回结果
+   - 支持实时反馈
+   - 处理长时间运行的任务
+
+### 4. 二次开发指南
+
+#### 4.1 扩展流程
+
+1. **添加新的提示词模板**
+```python
+custom_prompt = PromptTemplate(
+    template="""Your custom prompt template""",
+    input_variables=["your_variables"],
+)
+```
+
+2. **创建新的路由处理器**
+```python
+@router.post("/your_endpoint")
+async def your_handler(
+    req_body: YourRequestModel,
+    agent_service: AgentService
+) -> YourResponseModel:
+    # Your implementation
+    pass
+```
+
+3. **扩展Agent服务**
+```python
+class CustomAgentService(AgentService):
+    async def your_custom_method(self, **kwargs: Any) -> Any:
+        # Your implementation
+        pass
+```
+
+#### 4.2 开发步骤
+
+1. **理解现有组件**
+   - 学习提示词系统
+   - 了解路由处理流程
+   - 掌握服务实现方式
+
+2. **实现新功能**
+   - 添加必要的提示词
+   - 创建对应的路由
+   - 实现服务逻辑
+
+3. **测试和验证**
+   - 单元测试
+   - 集成测试
+   - 性能测试
+
+#### 4.3 注意事项
+
+1. **提示词开发**
+   - 保持语言一致性
+   - 考虑多语言支持
+   - 优化提示效果
+
+2. **路由处理**
+   - 合理使用依赖注入
+   - 处理异常情况
+   - 优化响应时间
+
+3. **服务实现**
+   - 遵循现有模式
+   - 保持代码质量
+   - 注意性能优化 
