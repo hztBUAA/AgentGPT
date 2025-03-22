@@ -660,6 +660,254 @@ class CustomTool(Tool):
         pass
 ```
 
+## Agent模块调用关系解析
+
+### 1. Views与Service的关系
+
+#### 1.1 核心导入分析
+
+1. **基础类型和工具**
+```python
+from typing import List, Optional  # 类型提示
+from fastapi import APIRouter, Depends  # FastAPI路由和依赖注入
+from fastapi.responses import StreamingResponse  # 流式响应
+from pydantic import BaseModel  # 数据验证
+```
+
+2. **Schema导入**
+```python
+from reworkd_platform.schemas.agent import (
+    AgentChat,          # 聊天请求模型
+    AgentRun,          # Agent运行请求模型
+    AgentSummarize,    # 总结请求模型
+    AgentTaskAnalyze,  # 任务分析请求模型
+    AgentTaskCreate,   # 任务创建请求模型
+    AgentTaskExecute,  # 任务执行请求模型
+    NewTasksResponse,  # 新任务响应模型
+)
+```
+
+3. **服务层导入**
+```python
+from reworkd_platform.web.api.agent.agent_service.agent_service import AgentService
+from reworkd_platform.web.api.agent.agent_service.agent_service_provider import get_agent_service
+```
+
+4. **验证器导入**
+```python
+from reworkd_platform.web.api.agent.dependancies import (
+    agent_analyze_validator,   # 分析任务验证
+    agent_chat_validator,      # 聊天验证
+    agent_create_validator,    # 创建任务验证
+    agent_execute_validator,   # 执行任务验证
+    agent_start_validator,     # 启动验证
+    agent_summarize_validator, # 总结验证
+)
+```
+
+#### 1.2 调用流程解析
+
+1. **启动任务流程**
+```python
+@router.post("/start")
+async def start_tasks(
+    req_body: AgentRun = Depends(agent_start_validator),
+    agent_service: AgentService = Depends(get_agent_service(agent_start_validator)),
+) -> NewTasksResponse:
+    # 1. 请求体通过agent_start_validator验证
+    # 2. 获取AgentService实例
+    # 3. 调用start_goal_agent方法
+    # 4. 返回新任务列表
+```
+
+2. **任务分析流程**
+```python
+@router.post("/analyze")
+async def analyze_tasks(
+    req_body: AgentTaskAnalyze = Depends(agent_analyze_validator),
+    agent_service: AgentService = Depends(get_agent_service(agent_analyze_validator)),
+) -> Analysis:
+    # 1. 请求体通过agent_analyze_validator验证
+    # 2. 获取AgentService实例
+    # 3. 调用analyze_task_agent方法
+    # 4. 返回分析结果
+```
+
+### 2. 模块功能解析
+
+#### 2.1 Schema模块
+
+1. **AgentRun**
+```python
+class AgentRun(BaseModel):
+    goal: str  # 任务目标
+    model_settings: ModelSettings  # 模型设置
+    run_id: str  # 运行ID
+```
+
+2. **AgentTaskAnalyze**
+```python
+class AgentTaskAnalyze(BaseModel):
+    goal: str  # 总体目标
+    task: str  # 具体任务
+    tool_names: List[str]  # 可用工具列表
+```
+
+#### 2.2 Service Provider
+
+1. **服务提供者**
+```python
+def get_agent_service(validator, streaming=False, llm_model=None):
+    def func(
+        run: AgentRun,
+        user: UserBase,
+        token_service: TokenService,
+        oauth_crud: OAuthCrud,
+    ) -> AgentService:
+        # 1. 检查是否使用mock模式
+        # 2. 创建模型实例
+        # 3. 返回OpenAIAgentService实例
+```
+
+#### 2.3 验证器模块
+
+1. **基础验证器**
+```python
+async def agent_start_validator(body: AgentRun) -> AgentRun:
+    # 1. 验证请求体格式
+    # 2. 检查必要字段
+    # 3. 返回验证后的数据
+```
+
+2. **任务验证器**
+```python
+async def agent_execute_validator(body: AgentTaskExecute) -> AgentTaskExecute:
+    # 1. 验证任务格式
+    # 2. 检查工具权限
+    # 3. 返回验证后的数据
+```
+
+### 3. 调用链路分析
+
+#### 3.1 请求处理流程
+
+1. **HTTP请求进入**
+   - FastAPI路由匹配
+   - 依赖注入处理
+   - 请求体解析
+
+2. **验证层处理**
+   - Schema验证
+   - 业务规则验证
+   - 权限检查
+
+3. **服务层处理**
+   - 获取服务实例
+   - 执行业务逻辑
+   - 处理结果返回
+
+4. **响应生成**
+   - 数据格式化
+   - 流式响应处理
+   - 错误处理
+
+#### 3.2 服务实例化流程
+
+1. **AgentService获取**
+```python
+agent_service = get_agent_service(validator)(
+    run=req_body,
+    user=current_user,
+    token_service=token_service,
+    oauth_crud=oauth_crud
+)
+```
+
+2. **模型创建**
+```python
+model = create_model(
+    settings,
+    run.model_settings,
+    user,
+    streaming=streaming,
+    force_model=llm_model,
+)
+```
+
+3. **服务初始化**
+```python
+service = OpenAIAgentService(
+    model=model,
+    settings=model_settings,
+    token_service=token_service,
+    callbacks=callbacks,
+    user=user,
+    oauth_crud=oauth_crud,
+)
+```
+
+### 4. 二次开发指南
+
+#### 4.1 新增端点步骤
+
+1. **定义Schema**
+```python
+class CustomRequest(BaseModel):
+    field1: str
+    field2: Optional[int]
+```
+
+2. **创建验证器**
+```python
+async def custom_validator(body: CustomRequest) -> CustomRequest:
+    # 实现验证逻辑
+    return body
+```
+
+3. **添加路由处理**
+```python
+@router.post("/custom")
+async def custom_endpoint(
+    req_body: CustomRequest = Depends(custom_validator),
+    agent_service: AgentService = Depends(get_agent_service(custom_validator)),
+):
+    # 实现处理逻辑
+```
+
+#### 4.2 扩展服务功能
+
+1. **扩展AgentService**
+```python
+class CustomAgentService(AgentService):
+    async def custom_method(self, **kwargs):
+        # 实现新功能
+```
+
+2. **注册服务提供者**
+```python
+def get_custom_agent_service(validator):
+    def func(**kwargs) -> AgentService:
+        return CustomAgentService(**kwargs)
+    return func
+```
+
+#### 4.3 注意事项
+
+1. **依赖注入**
+   - 正确使用Depends
+   - 处理循环依赖
+   - 管理服务生命周期
+
+2. **验证处理**
+   - 完整的输入验证
+   - 合理的错误提示
+   - 统一的验证模式
+
+3. **响应处理**
+   - 统一响应格式
+   - 正确的状态码
+   - 合适的错误处理
+
 ## Agent模块核心组件
 
 ### 1. 流式响应处理 (Stream Mock)
