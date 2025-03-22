@@ -367,4 +367,295 @@ class CustomModelService:
 1. 遵循现有代码结构和风格
 2. 充分测试新功能
 3. 注意异步操作的正确使用
-4. 保持代码文档的更新 
+4. 保持代码文档的更新
+
+## 测试驱动开发
+
+### 1. 测试架构
+
+#### 1.1 核心测试模块
+
+1. **任务分析测试** (`test_analysis.py`)
+```python
+def test_analysis_model() -> None:
+    valid_tool_name = get_tool_name(get_default_tool())
+    analysis = Analysis(action=valid_tool_name, arg="arg", reasoning="reasoning")
+    assert analysis.action == valid_tool_name
+```
+- 验证任务分析的正确性
+- 测试工具选择逻辑
+- 验证参数验证机制
+
+2. **任务输出解析测试** (`test_task_output_parser.py`)
+```python
+def test_parse_success(input_text: str, expected_output: List[str]) -> None:
+    parser = TaskOutputParser(completed_tasks=[])
+    result = parser.parse(input_text)
+    assert result == expected_output
+```
+- 测试任务格式解析
+- 验证任务提取逻辑
+- 处理各种输入格式
+
+3. **模型工厂测试** (`test_model_factory.py`)
+```python
+def test_create_model(streaming, use_azure):
+    result = create_model(settings, model_settings, user, streaming)
+    assert issubclass(result.__class__, WrappedChatOpenAI)
+```
+- 测试模型创建逻辑
+- 验证模型配置
+- 检查API集成
+
+### 2. 测试场景分析
+
+#### 2.1 任务解析场景
+
+1. **基础任务解析**
+```python
+@pytest.mark.parametrize(
+    "task_input, expected_output",
+    [
+        ("Task: This is a sample task", "This is a sample task"),
+        ("Step 1: Perform analysis", "Perform analysis"),
+    ]
+)
+```
+- 处理不同任务格式
+- 移除前缀和标记
+- 标准化输出
+
+2. **复杂任务处理**
+```python
+def test_parse_with_completed_tasks() -> None:
+    input_text = '["One", "Two", "Three"]'
+    completed = ["One"]
+    expected = ["Two", "Three"]
+```
+- 处理任务依赖
+- 跟踪完成状态
+- 维护任务队列
+
+#### 2.2 模型集成测试
+
+1. **模型配置验证**
+```python
+def test_custom_model_settings(model_settings: ModelSettings, streaming: bool):
+    model = create_model(Settings(), model_settings, UserBase(), streaming)
+    assert model.temperature == model_settings.temperature
+```
+- 验证模型参数
+- 检查配置继承
+- 测试自定义设置
+
+2. **API集成测试**
+```python
+def test_helicone_enabled_without_custom_api_key():
+    base, headers, use_helicone = get_base_and_headers(settings, model_settings, user)
+```
+- 测试API连接
+- 验证认证机制
+- 检查错误处理
+
+### 3. 二次开发指南
+
+#### 3.1 测试驱动开发流程
+
+1. **编写测试用例**
+```python
+def test_custom_workflow():
+    workflow = CustomWorkflow(config)
+    result = workflow.execute(task)
+    assert result.status == "completed"
+```
+
+2. **实现功能代码**
+```python
+class CustomWorkflow:
+    def execute(self, task: Task) -> Result:
+        # 实现自定义工作流逻辑
+        pass
+```
+
+3. **验证和迭代**
+- 运行测试套件
+- 修复失败的测试
+- 重构和优化
+
+#### 3.2 测试覆盖场景
+
+1. **工作流测试**
+- 任务创建和分解
+- 执行流程控制
+- 结果验证
+
+2. **工具集成测试**
+- 工具调用机制
+- 参数传递
+- 错误处理
+
+3. **模型交互测试**
+- 提示词处理
+- 响应解析
+- 上下文管理
+
+#### 3.3 最佳实践
+
+1. **测试组织**
+- 按功能模块组织测试
+- 使用参数化测试
+- 维护测试数据
+
+2. **异常处理**
+- 测试边界条件
+- 验证错误响应
+- 检查恢复机制
+
+3. **性能考虑**
+- 模拟外部依赖
+- 优化测试执行
+- 监控资源使用
+
+### 4. 核心功能函数解析
+
+#### 4.1 任务输出解析器 (TaskOutputParser)
+
+```python
+class TaskOutputParser(BaseOutputParser[List[str]]):
+    def parse(self, text: str) -> List[str]:
+        array_str = extract_array(text)
+        all_tasks = [
+            remove_prefix(task) for task in array_str if real_tasks_filter(task)
+        ]
+        return [task for task in all_tasks if task not in self.completed_tasks]
+```
+
+功能流程：
+1. 接收模型输出的文本
+2. 提取任务数组
+3. 移除任务前缀
+4. 过滤无效任务
+5. 排除已完成任务
+
+关键辅助函数：
+- `extract_array`: 从文本中提取任务数组
+- `remove_prefix`: 移除任务前缀（如"Task 1:", "Step 1:"等）
+- `real_tasks_filter`: 过滤无效或完成的任务
+
+#### 4.2 任务分析器 (Analysis)
+
+```python
+class Analysis(AnalysisArguments):
+    action: str
+
+    @validator("action")
+    def action_must_be_valid_tool(cls, v: str) -> str:
+        if v not in get_available_tools_names():
+            raise ValueError(f"Analysis action '{v}' is not a valid tool")
+        return v
+```
+
+功能特点：
+1. 验证工具动作的有效性
+2. 处理搜索动作的特殊要求
+3. 提供默认分析结果
+
+使用场景：
+- 任务分析阶段
+- 工具选择验证
+- 参数验证
+
+#### 4.3 工具管理 (Tool System)
+
+```python
+def get_tool_name(tool: Type[Tool]) -> str:
+    return format_tool_name(tool.__name__)
+
+def get_tool_from_name(tool_name: str) -> Type[Tool]:
+    for tool in get_available_tools():
+        if get_tool_name(tool) == format_tool_name(tool_name):
+            return tool
+    return get_default_tool()
+```
+
+核心功能：
+1. 工具名称标准化
+2. 工具查找和获取
+3. 默认工具回退机制
+
+工具注册流程：
+1. 继承Tool基类
+2. 实现必要方法
+3. 注册到工具系统
+
+#### 4.4 Agent服务实现
+
+```python
+class OpenAIAgentService(AgentService):
+    async def analyze_task_agent(
+        self, *, goal: str, task: str, tool_names: List[str]
+    ) -> Analysis:
+        user_tools = await get_user_tools(tool_names, self.user, self.oauth_crud)
+        functions = list(map(get_tool_function, user_tools))
+        # ... 实现分析逻辑
+```
+
+主要流程：
+1. 目标初始化
+2. 任务分析
+3. 工具选择
+4. 任务执行
+5. 结果汇总
+
+#### 4.5 开发注意事项
+
+1. **任务解析**
+   - 处理各种输入格式
+   - 维护任务状态
+   - 处理边界情况
+
+2. **工具系统**
+   - 工具注册机制
+   - 权限控制
+   - 错误处理
+
+3. **服务集成**
+   - 异步操作
+   - 状态管理
+   - 资源释放
+
+4. **测试覆盖**
+   - 单元测试
+   - 集成测试
+   - 性能测试
+
+#### 4.6 自定义开发示例
+
+1. **自定义任务解析器**
+```python
+class CustomTaskParser(TaskOutputParser):
+    def parse(self, text: str) -> List[str]:
+        # 实现自定义解析逻辑
+        pass
+```
+
+2. **自定义分析器**
+```python
+class CustomAnalysis(Analysis):
+    additional_field: str
+    
+    @validator("additional_field")
+    def validate_field(cls, v: str) -> str:
+        # 实现自定义验证
+        pass
+```
+
+3. **自定义工具**
+```python
+class CustomTool(Tool):
+    description = "自定义工具描述"
+    
+    async def call(self, goal: str, task: str, input_str: str, *args, **kwargs):
+        # 实现工具逻辑
+        pass
+``` 
