@@ -18,6 +18,9 @@ def _setup_db(app: FastAPI) -> None:  # pragma: no cover
     and stores them in the application's state property.
 
     :param app: fastAPI application.
+
+    这里的state就是一个字典
+    跨请求共享数据
     """
     engine = create_engine()
     session_factory = async_sessionmaker(

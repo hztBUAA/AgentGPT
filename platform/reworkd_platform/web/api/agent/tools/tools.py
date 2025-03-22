@@ -12,6 +12,11 @@ from reworkd_platform.web.api.agent.tools.tool import Tool
 async def get_user_tools(
     tool_names: List[str], user: UserBase, crud: OAuthCrud
 ) -> List[Type[Tool]]:
+    """
+    Get the tools that the user has access to.
+    一般来说 都是可使用的
+    除了sidsearch 需要先安装
+    """
     tools = list(map(get_tool_from_name, tool_names)) + get_default_tools()
     return [tool for tool in tools if await tool.dynamic_available(user, crud)]
 

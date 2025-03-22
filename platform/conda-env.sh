@@ -2,7 +2,8 @@
 # conda create -n reworkd_platform python=3.11
 
 # 激活环境
-conda activate agentGPT
+conda init
+conda activate agent
 
 # 安装主要依赖
 conda install -c conda-forge \
