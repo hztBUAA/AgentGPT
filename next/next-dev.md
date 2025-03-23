@@ -298,7 +298,7 @@ run = async () => {
 };
 ```
 
-#### 5. 创建新任务
+#### 5. 创建新任务(注意到目前是完全没有使用这个方法的  也就是目前的版本是只有第一次的创建start-work然后经历了run conclude)
 
 **前端流程**：
 - 任务执行完成后，如果没有更多的待处理任务，创建 `CreateTaskWork` 工作项
@@ -478,3 +478,192 @@ AI在医疗领域的应用正处于快速发展阶段，技术进步和市场需
 - 两者通过定义明确的API接口进行交互，形成完整的系统
 
 通过这种前后端分离的架构，系统可以灵活地扩展功能，同时保持代码的清晰和可维护性。
+
+## Store 系统与数据流管理
+
+AgentGPT 前端使用了基于 Zustand 的状态管理系统，采用多个 store 来管理不同类型的状态。这种设计有效地解决了状态共享和组件间通信的问题。
+
+### 1. Store 基础架构
+
+AgentGPT 采用了模块化的 store 设计:
+
+```typescript
+// 创建带选择器的 store
+export const createSelectors = <S extends UseBoundStore<StoreApi<object>>>(_store: S) => {
+  const store = _store as WithSelectors<typeof _store>;
+  store.use = {};
+  for (const k of Object.keys(store.getState())) {
+    (store.use)[k] = () => store((s) => s[k as keyof typeof s]);
+  }
+  return store;
+};
+```
+
+这个 `createSelectors` 函数为 store 自动创建选择器，使得组件可以方便地订阅特定的状态。
+
+### 2. 核心 Store 及其功能
+
+#### AgentStore
+
+```typescript
+interface AgentSlice {
+  agent: AutonomousAgent | null;        // Agent 实例
+  lifecycle: AgentLifecycle;            // 生命周期状态
+  setLifecycle: (AgentLifecycle) => void;
+  summarized: boolean;                  // 是否已经总结
+  setSummarized: (boolean) => void;
+  isAgentThinking: boolean;             // Agent 是否正在思考
+  setIsAgentThinking: (isThinking: boolean) => void;
+  setAgent: (newAgent: AutonomousAgent | null) => void;
+}
+
+interface ToolsSlice {
+  tools: Omit<ActiveTool, "active">[];  // 可用工具
+  setTools: (tools: ActiveTool[]) => void;
+}
+```
+
+AgentStore 管理 Agent 实例和生命周期，以及工具配置。
+
+#### TaskStore
+
+```typescript
+interface TaskSlice {
+  tasks: Task[];                        // 任务列表
+  addTask: (newTask: Task) => void;     // 添加任务
+  updateTask: (updatedTask: Task) => void; // 更新任务
+  deleteTask: (taskId: string) => void; // 删除任务
+}
+```
+
+TaskStore 管理所有任务的状态，包括添加、更新和删除任务。
+
+#### MessageStore
+
+```typescript
+interface MessageSlice {
+  messages: Message[];                  // 消息列表
+  addMessage: (newMessage: Message) => void; // 添加消息
+  updateMessage: (newMessage: Message) => void; // 更新消息
+}
+```
+
+MessageStore 管理所有消息，包括系统消息、任务消息等。
+
+### 3. Store 的使用方式
+
+#### 组件中使用 Store
+
+```typescript
+// 使用 .use API 访问状态
+const messages = useMessageStore.use.messages();
+const addMessage = useMessageStore.use.addMessage();
+
+// 通过函数组件使用
+function MessageList() {
+  const messages = useMessageStore.use.messages();
+  
+  return (
+    <div>
+      {messages.map(message => (
+        <MessageItem key={message.id} message={message} />
+      ))}
+    </div>
+  );
+}
+```
+
+#### 服务层使用 Store
+
+```typescript
+// 直接通过 getState 获取状态
+// agent-run-model.tsx
+getLifecycle = (): AgentLifecycle => useAgentStore.getState().lifecycle;
+setLifecycle = (lifecycle: AgentLifecycle) => useAgentStore.getState().setLifecycle(lifecycle);
+
+// message-service.ts
+updateMessage = (message: Message): Message => {
+  useMessageStore.getState().updateMessage(message);
+  return message;
+};
+```
+
+### 4. 任务管理流程
+
+Agent 任务的处理依赖于 TaskStore 中的任务状态：
+
+```typescript
+// agent-run-model.tsx
+getRemainingTasks = (): Task[] => {
+  return useTaskStore.getState().tasks.filter((t: Task) => t.status === "started");
+};
+
+getCurrentTask = (): Task | undefined => this.getRemainingTasks()[0];
+
+getCompletedTasks = (): Task[] =>
+  useTaskStore.getState().tasks.filter((t: Task) => t.status === "completed");
+```
+
+这些方法根据任务状态从 TaskStore 中筛选不同状态的任务，控制 Agent 的执行流程：
+
+1. **任务排序**：任务按照创建顺序进入队列
+2. **任务选择**：Agent 总是选择第一个状态为 "started" 的任务执行
+3. **任务状态更新**：执行过程中更新任务状态（started → executing → completed）
+
+### 5. Store 与 API 的交互
+
+1. **从后端获取数据，更新到 Store**：
+   ```typescript
+   // 获取初始任务并添加到 TaskStore
+   this.tasksValues = await this.parent.api.getInitialTasks();
+   // ...
+   for (const value of tasks) {
+     messages.push(this.messageService.startTask(value));
+     this.model.addTask(value); // 内部调用 useTaskStore.getState().addTask()
+   }
+   ```
+
+2. **将 Store 数据持久化到后端**：
+   ```typescript
+   // 保存消息和任务到数据库
+   this.parent.api.saveMessages([executionMessage]);
+   
+   // agent-api.ts
+   saveMessages(messages: Message[]): void {
+     if (!this.agentId) return;
+     this.props.agentUtils.saveAgent({
+       id: this.agentId,
+       tasks: messages,
+     });
+   }
+   ```
+
+### 6. 流式响应与 Store 更新
+
+流式响应特别依赖 Store 进行实时更新：
+
+```typescript
+// 流式更新消息内容
+await streamText(
+  "/api/agent/execute",
+  {...},
+  ...,
+  (text) => {
+    executionMessage.info += text;
+    this.task = this.parent.model.updateTaskResult(this.task, executionMessage.info || "");
+    this.parent.messageService.updateMessage(executionMessage); // 更新 MessageStore
+  },
+  ...
+);
+```
+
+这种模式特别适合流式响应，因为它允许组件实时反应状态变化。
+
+### 7. Store 设计的优势
+
+1. **状态集中管理**：所有状态都在 store 中管理，避免了组件间的状态传递
+2. **响应式更新**：状态变化时自动触发组件重新渲染
+3. **状态访问灵活**：既可以通过 hooks 在组件中使用，也可以直接在服务层使用
+4. **模块化设计**：不同类型的状态分离到不同的 store，便于维护
+
+这种设计使得 AgentGPT 能够管理复杂的状态流转，同时保持代码的简洁和可维护性。
