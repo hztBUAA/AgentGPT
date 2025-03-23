@@ -70,6 +70,13 @@ const Home: NextPage = () => {
   };
 
   const handleNewAgent = (goal: string) => {
+    const session: Session = {
+      user: {
+        id: "123",
+        email: "test@test.com",
+        name: "Test User",
+      },
+    };
     if (session === null) {
       storeAgentDataInLocalStorage("", goal);
       setShowSignInDialog(true);
