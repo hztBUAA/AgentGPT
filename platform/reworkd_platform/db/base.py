@@ -17,7 +17,7 @@ class Base(DeclarativeBase):
 
     metadata = meta
     id: Mapped[str] = mapped_column(
-        String,
+        String(36),
         primary_key=True,
         default=lambda _: str(uuid.uuid4()),
         unique=True,
@@ -64,5 +64,5 @@ class TrackedModel(Base):
 
 
 class UserMixin:
-    user_id = mapped_column(String, name="user_id", nullable=False)
-    organization_id = mapped_column(String, name="organization_id", nullable=True)
+    user_id = mapped_column(String(255), name="user_id", nullable=False)
+    organization_id = mapped_column(String(36), name="organization_id", nullable=True)

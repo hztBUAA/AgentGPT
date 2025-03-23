@@ -9,9 +9,9 @@ from reworkd_platform.db.base import Base
 class UserSession(Base):
     __tablename__ = "Session"
 
-    session_token = mapped_column(String, unique=True, name="sessionToken")
+    session_token = mapped_column(String(255), unique=True, name="sessionToken")
     user_id = mapped_column(
-        String, ForeignKey("User.id", ondelete="CASCADE"), name="userId"
+        String(36), ForeignKey("User.id", ondelete="CASCADE"), name="userId"
     )
     expires = mapped_column(DateTime)
 
@@ -23,10 +23,10 @@ class UserSession(Base):
 class User(Base):
     __tablename__ = "User"
 
-    name = mapped_column(String, nullable=True)
-    email = mapped_column(String, nullable=True, unique=True)
+    name = mapped_column(String(255), nullable=True)
+    email = mapped_column(String(255), nullable=True, unique=True)
     email_verified = mapped_column(DateTime, nullable=True, name="emailVerified")
-    image = mapped_column(String, nullable=True)
+    image = mapped_column(String(1024), nullable=True)
     create_date = mapped_column(
         DateTime, server_default=text("(now())"), name="createDate"
     )
