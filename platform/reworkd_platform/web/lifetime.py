@@ -58,7 +58,7 @@ def register_startup_event(
     async def _startup() -> None:  # noqa: WPS430
         _setup_db(app)
         init_tokenizer(app)
-        # await _create_tables()
+        await _create_tables()
 
     return _startup
 
