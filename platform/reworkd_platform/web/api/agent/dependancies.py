@@ -2,6 +2,7 @@ from typing import TypeVar
 
 from fastapi import Body, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+import uuid
 
 from reworkd_platform.db.crud.agent import AgentCRUD
 from reworkd_platform.db.dependencies import get_db_session
@@ -16,17 +17,27 @@ from reworkd_platform.schemas.agent import (
     Loop_Step,
 )
 from reworkd_platform.schemas.user import UserBase
-from reworkd_platform.web.api.dependencies import get_current_user
 
 T = TypeVar(
     "T", AgentTaskAnalyze, AgentTaskExecute, AgentTaskCreate, AgentSummarize, AgentChat
 )
 
 
+def get_anonymous_user() -> UserBase:
+    """创建一个匿名用户，用于不需要登录的场景"""
+    return UserBase(
+        id=str(uuid.uuid4()),
+        name="Anonymous User",
+        email="anonymous@example.com",
+        image=None,
+    )
+
+
 def agent_crud(
-    user: UserBase = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ) -> AgentCRUD:
+    # 使用匿名用户
+    user = get_anonymous_user()
     return AgentCRUD(session, user)
 
 

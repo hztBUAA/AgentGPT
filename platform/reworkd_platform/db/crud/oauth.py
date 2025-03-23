@@ -59,6 +59,14 @@ class OAuthCrud(BaseCrud):
         return (await self.session.execute(query)).scalars().first()
 
     async def get_all(self, user: UserBase) -> Dict[str, str]:
+        # 如果是匿名用户，直接返回空字典
+        if user.email == "anonymous@example.com":
+            return {}
+            
+        # 匿名用户可能没有 organization_id，所以需要检查
+        if not hasattr(user, "organization_id") or user.organization_id is None:
+            return {}
+            
         query = (
             select(
                 OauthCredentials.provider,
