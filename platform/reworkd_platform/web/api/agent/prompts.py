@@ -2,6 +2,14 @@ from langchain import PromptTemplate
 
 # Create initial tasks using plan and solve prompting
 # https://github.com/AGI-Edgerunners/Plan-and-Solve-Prompting
+"""
+    这个prompt是用来创建初始任务的。
+    它根据给定的目标，生成一系列的搜索查询，这些查询将用于回答目标的全部内容。
+    限制查询的数量为5个，并确保查询简洁。
+    对于简单的问题，使用单个查询。
+    返回的响应是一个JSON数组，包含字符串。
+    
+"""
 start_goal_prompt = PromptTemplate(
     template="""You are a task creation AI called AgentGPT. 
 You answer in the "{language}" language. You have the following objective "{goal}". 
@@ -21,6 +29,15 @@ query: "What are the nutritional values of almond milk and soy milk?", answer: [
     input_variables=["goal", "language"],
 )
 
+"""
+    这个prompt是用来分析任务的。
+    它根据给定的目标和当前任务，生成一个分析结果。
+    分析结果包括：
+    1. 当前任务是否与目标相关。
+    2. 当前任务是否需要更多的信息。
+    3. 当前任务是否需要更多的步骤。
+    4. 当前任务是否需要更多的查询。
+"""
 analyze_task_prompt = PromptTemplate(
     template="""
     High level objective: "{goal}"
@@ -35,6 +52,13 @@ analyze_task_prompt = PromptTemplate(
     input_variables=["goal", "task", "language"],
 )
 
+"""
+    这个prompt是用来编写代码的。
+    它根据给定的目标，生成一个代码片段。
+    代码片段需要用英语编写，解释/注释需要用给定的语言编写。
+    不要提供任何关于你自己的信息，专注于编写代码。
+    确保代码没有错误，并通过注释解释复杂的概念。
+"""
 code_prompt = PromptTemplate(
     template="""
     You are a world-class software engineer and an expert in all programing languages,
@@ -55,6 +79,13 @@ code_prompt = PromptTemplate(
     input_variables=["goal", "language", "task"],
 )
 
+"""
+    这个prompt是用来执行任务的。
+    它根据给定的目标和当前任务，生成一个执行结果。
+    执行结果需要用给定的语言编写，并解释/注释需要用英语编写。
+    不要提供任何关于你自己的信息，专注于执行任务。
+    确保任务没有错误，并通过注释解释复杂的概念。
+"""
 execute_task_prompt = PromptTemplate(
     template="""Answer in the "{language}" language. Given
     the following overall objective `{goal}` and the following sub-task, `{task}`.
@@ -66,6 +97,13 @@ execute_task_prompt = PromptTemplate(
     input_variables=["goal", "language", "task"],
 )
 
+"""
+    这个prompt是用来创建任务的。
+    它根据给定的目标和当前任务，生成一个新的任务。
+    新的任务需要用给定的语言编写，并解释/注释需要用英语编写。
+    不要提供任何关于你自己的信息，专注于创建任务。
+    确保任务没有错误，并通过注释解释复杂的概念。
+"""
 create_tasks_prompt = PromptTemplate(
     template="""You are an AI task creation agent. You must answer in the "{language}"
     language. You have the following objective `{goal}`.
@@ -91,6 +129,13 @@ create_tasks_prompt = PromptTemplate(
     input_variables=["goal", "language", "tasks", "lastTask", "result"],
 )
 
+"""
+    这个prompt是用来总结文本的。
+    它根据给定的目标和文本，生成一个总结。
+    总结需要用给定的语言编写，并解释/注释需要用英语编写。
+    不要提供任何关于你自己的信息，专注于总结文本。
+    确保总结没有错误，并通过注释解释复杂的概念。
+"""
 summarize_prompt = PromptTemplate(
     template="""You must answer in the "{language}" language.
 
@@ -108,6 +153,13 @@ summarize_prompt = PromptTemplate(
     input_variables=["goal", "language", "text"],
 )
 
+"""
+    这个prompt是用来总结公司的。
+    它根据给定的公司名称，生成一个总结。
+    总结需要用给定的语言编写，并解释/注释需要用英语编写。
+    不要提供任何关于你自己的信息，专注于总结公司。
+    确保总结没有错误，并通过注释解释复杂的概念。
+"""
 company_context_prompt = PromptTemplate(
     template="""You must answer in the "{language}" language.
 
@@ -123,6 +175,13 @@ company_context_prompt = PromptTemplate(
     input_variables=["company_name", "language"],
 )
 
+"""
+    这个prompt是用来总结文本的。
+    它根据给定的文本和目标，生成一个总结。
+    总结需要用给定的语言编写，并解释/注释需要用英语编写。
+    不要提供任何关于你自己的信息，专注于总结文本。
+    确保总结没有错误，并通过注释解释复杂的概念。
+"""
 summarize_pdf_prompt = PromptTemplate(
     template="""You must answer in the "{language}" language.
 
@@ -135,6 +194,13 @@ summarize_pdf_prompt = PromptTemplate(
     input_variables=["query", "language", "text"],
 )
 
+"""
+    这个prompt是用来总结文本的。
+    它根据给定的文本和目标，生成一个总结。
+    总结需要用给定的语言编写，并解释/注释需要用英语编写。
+    不要提供任何关于你自己的信息，专注于总结文本。
+    确保总结没有错误，并通过注释解释复杂的概念。
+"""
 summarize_with_sources_prompt = PromptTemplate(
     template="""You must answer in the "{language}" language.
 
@@ -155,6 +221,13 @@ summarize_with_sources_prompt = PromptTemplate(
     input_variables=["language", "query", "snippets"],
 )
 
+"""
+    这个prompt是用来总结文本的。
+    它根据给定的文本和目标，生成一个总结。
+    总结需要用给定的语言编写，并解释/注释需要用英语编写。
+    不要提供任何关于你自己的信息，专注于总结文本。
+    确保总结没有错误，并通过注释解释复杂的概念。
+"""
 summarize_sid_prompt = PromptTemplate(
     template="""You must answer in the "{language}" language.
 
@@ -171,6 +244,13 @@ summarize_sid_prompt = PromptTemplate(
     input_variables=["goal", "language", "query", "snippets"],
 )
 
+"""
+    这个prompt是用来聊天。
+    它根据给定的文本和目标，生成一个总结。
+    总结需要用给定的语言编写，并解释/注释需要用英语编写。
+    不要提供任何关于你自己的信息，专注于总结文本。
+    确保总结没有错误，并通过注释解释复杂的概念。
+"""
 chat_prompt = PromptTemplate(
     template="""You must answer in the "{language}" language.
 
