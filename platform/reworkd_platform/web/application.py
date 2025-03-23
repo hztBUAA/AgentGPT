@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import UJSONResponse
 
-from reworkd_platform.logging import configure_logging
+from reworkd_platform.platform_logging import configure_logging
 from reworkd_platform.settings import settings
 from reworkd_platform.web.api.error_handling import platformatic_exception_handler
 from reworkd_platform.web.api.errors import PlatformaticError
